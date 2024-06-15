@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Movie Database</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Movie Database</h1>
+
+    <h2>Search</h2>
+    <input type="text" id="search-box" placeholder="Search by title" onkeyup="searchData()">
+
+    <h2>Movies</h2>
+    <table id="movie-table">
+        <tr>
+            <th>ID</th>
+            <th>Title</th>
+            <th>Rating</th>
+            <th>Actions</th>
+        </tr>
+        <!-- Movies will be rendered here -->
+    </table>
+
+    <h2>Add Movie</h2>
+    <form id="add-movie-form">
+        <input type="text" id="title" placeholder="Title" required>
+        <input type="text" id="rating" placeholder="Rating">
+        <button type="button" onclick="addMovie()">Add</button>
+    </form>
+
+    <h2>Update Movie</h2>
+    <form id="update-movie-form" style="display:none;">
+        <input type="hidden" id="movie-id">
+        <input type="text" id="update-title" placeholder="Title" required>
+        <input type="text" id="update-rating" placeholder="Rating">
+        <button type="button" onclick="updateMovie()">Update</button>
+    </form>
+
+    <script>
+        function renderMovies(movies) {
+            const table = $('#movie-table');
+            table.empty(); // Clear existing table data
+            table.append($('<tr>').append(
+                $('<th>').text('ID'),
+                $('<th>').text('Title'),
+                $('<th>').text('Rating'),
+                $('<th>').text('Actions')
+            ));
+            movies.forEach(movie => {
+                table.append($('<tr>').append(
+                    $('<td>').text(movie['_id']['$oid']),
+                    $('<td>').text(movie['title']),
+                    $('<td>').text(movie['rating'][0]),
+                    $('<td>').html(`
+                        <button onclick="deleteMovie(${movie['_id']['$oid']})">Delete</button>
+                        <button onclick="showUpdateForm(${movie['_id']['$oid']})">Update</button>
+                    `)
+                ));
+            });
+        }
+
+        function loadMovies() {
+            $.get('/api/movies', function(data) {
+                renderMovies(data);
+            });
+        }
+
+        function addMovie() {
+            const title = $('#title').val();
+            const rating = $('#rating').val();
+            $.post('/api/add', { title: title, rating: rating }, function(data) {
+                loadMovies();
+                $('#add-movie-form')[0].reset(); // Clear the form
+            });
+        }
+
+        function deleteMovie(movieId) {
+            $.ajax({
+                url: `/api/delete/${movieId}`,
+                type: 'DELETE',
+                success: function(result) {
+                    loadMovies();
+                }
+            });
+        }
+
+        function showUpdateForm(movieId) {
+            $.get('/api/movies', function(data) {
+                                    const movie = data.find(movie => movie['_id']['$oid'] == movieId);
+                    if (movie) {
+                        const updateForm = $('#update-movie-form');
+                        updateForm.show();
+                        updateForm['title'].value = movie['title'];
+                        updateForm['rating'].value = movie['rating'][0];
+                        updateForm['movie-id'].value = movieId;
+                    }
+                });
+            });
+        }
+
+        function updateMovie() {
+            const movieId = $('#movie-id').val();
+            const title = $('#update-title').val();
+            const rating = $('#update-rating').val();
+            $.ajax({
+                url: `/api/update/${movieId}`,
+                type: 'PUT',
+                data: { title: title, rating: rating },
+                success: function(result) {
+                    loadMovies();
+                    $('#update-movie-form')[0].reset(); // Clear the form
+                    $('#update-movie-form').hide(); // Hide the form after update
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            loadMovies();
+        });
+    </script>
+</body>
+</html>
